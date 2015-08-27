@@ -1,7 +1,9 @@
 package io.kickflip.sdk.api.json;
 
-import com.amazonaws.util.json.Jackson;
+import android.util.Log;
+
 import com.google.api.client.util.Key;
+import com.google.gson.Gson;
 
 import java.util.Map;
 
@@ -10,6 +12,7 @@ import java.util.Map;
  *
  */
 public class User extends Response {
+    public static final String TAG = "User";
 
     @Key("app")
     private String mApp;
@@ -34,7 +37,7 @@ public class User extends Response {
         mName = name;
         mUUID = uuid;
         if (extraInfo != null)
-            mExtraInfoStr = Jackson.toJsonString(extraInfo);
+            mExtraInfoStr = new Gson().toJson(extraInfo);
     }
 
     public User(){
@@ -58,7 +61,12 @@ public class User extends Response {
     }
 
     public Map getExtraInfo() {
-        return (mExtraInfoStr == null ? null : Jackson.fromJsonString(mExtraInfoStr, Map.class));
+        try {
+            return (mExtraInfoStr == null || mExtraInfoStr.trim().length() == 0 ? null : new Gson().fromJson(mExtraInfoStr, Map.class));
+        } catch (IllegalStateException e) {
+            Log.e(TAG, "Unable to deserialize extraInfo");
+            return null;
+        }
     }
 
     public String getAvatarUrl() {

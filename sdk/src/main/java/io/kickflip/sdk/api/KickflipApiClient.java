@@ -7,7 +7,6 @@ import android.os.Handler;
 import android.util.Log;
 
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.util.json.Jackson;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpContent;
 import com.google.api.client.http.HttpRequest;
@@ -19,6 +18,8 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.JsonObjectParser;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.GenericData;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -63,7 +64,7 @@ public class KickflipApiClient extends OAuthClient {
     private static final String SEARCH_KEYWORD      = "/search";
     private static final String SEARCH_USER         = "/search/user";
     private static final String SEARCH_GEO          = "/search/location";
-    private static final String API_VERSION         = "/1.1";
+    private static final String API_VERSION         = "/1.2";
     private static final int MAX_EOF_RETRIES        = 1;
     private static int UNKNOWN_ERROR_CODE           = R.integer.generic_error;    // Error code used when none provided from server
     private static String BASE_URL;
@@ -151,7 +152,7 @@ public class KickflipApiClient extends OAuthClient {
             data.put("email", email);
         }
         if (extraInfo != null) {
-            data.put("extra_info", Jackson.toJsonString(extraInfo));
+            data.put("extra_info", new Gson().toJson(extraInfo));
         }
 
         post(NEW_USER, new UrlEncodedContent(data), User.class, new KickflipCallback() {
@@ -254,7 +255,7 @@ public class KickflipApiClient extends OAuthClient {
         }
         if (email != null) data.put("email", email);
         if (displayName != null) data.put("display_name", displayName);
-        if (extraInfo != null) data.put("extra_info", Jackson.toJsonString(extraInfo));
+        if (extraInfo != null) data.put("extra_info", new Gson().toJson(extraInfo));
 
         post(EDIT_USER, new UrlEncodedContent(data), User.class, new KickflipCallback() {
             @Override
@@ -330,7 +331,6 @@ public class KickflipApiClient extends OAuthClient {
     private void startStreamWithUser(User user, Stream stream, final KickflipCallback cb) {
         checkNotNull(user);
         checkNotNull(stream);
-        // TODO: Be HLS / RTMP Agnostic
         GenericData data = new GenericData();
         data.put("uuid", user.getUUID());
         data.put("private", stream.isPrivate());
@@ -341,7 +341,7 @@ public class KickflipApiClient extends OAuthClient {
             data.put("description", stream.getDescription());
         }
         if (stream.getExtraInfo() != null) {
-            data.put("extra_info", Jackson.toJsonString(stream.getExtraInfo()));
+            data.put("extra_info", new Gson().toJson(stream.getExtraInfo()));
         }
         post(START_STREAM, new UrlEncodedContent(data), HlsStream.class, cb);
     }
@@ -353,7 +353,7 @@ public class KickflipApiClient extends OAuthClient {
      *
      * @param cb This callback will receive a Stream subclass in {@link io.kickflip.sdk.api.KickflipCallback#onSuccess(io.kickflip.sdk.api.json.Response)}
      *           depending on the Kickflip account type. Implementors should
-     *           check if the response is instanceof HlsStream, StartRtmpStreamResponse, etc.
+     *           check if the response is instanceof HlsStream, etc.
      */
     public void stopStream(Stream stream, final KickflipCallback cb) {
         if (!assertActiveUserAvailable(cb)) return;
@@ -365,11 +365,10 @@ public class KickflipApiClient extends OAuthClient {
      *
      * @param cb This callback will receive a Stream subclass in #onSuccess(response)
      *           depending on the Kickflip account type. Implementors should
-     *           check if the response is instanceof HlsStream, StartRtmpStreamResponse, etc.
+     *           check if the response is instanceof HlsStream, etc.
      */
     private void stopStream(User user, Stream stream, final KickflipCallback cb) {
         checkNotNull(stream);
-        // TODO: Be HLS / RTMP Agnostic
         // TODO: Add start / stop lat lon to Stream?
         GenericData data = new GenericData();
         data.put("stream_id", stream.getStreamId());
@@ -403,7 +402,7 @@ public class KickflipApiClient extends OAuthClient {
             data.put("description", stream.getDescription());
         }
         if (stream.getExtraInfo() != null) {
-            data.put("extra_info", Jackson.toJsonString(stream.getExtraInfo()));
+            data.put("extra_info", new Gson().toJson(stream.getExtraInfo()));
         }
         if (stream.getLatitude() != 0) {
             data.put("lat", stream.getLatitude());
@@ -571,7 +570,7 @@ public class KickflipApiClient extends OAuthClient {
 
     private void request(HttpRequestFactory requestFactory, final METHOD method, final String url, final HttpContent content, final Class responseClass, final KickflipCallback cb) {
         if (VERBOSE)
-            Log.i(TAG, String.format("REQUEST: %S : %s body: %s", method, shortenUrlString(url), (content == null ? "" : Jackson.toJsonPrettyString(content))));
+            Log.i(TAG, String.format("REQUEST: %S : %s body: %s", method, shortenUrlString(url), (content == null ? "" : new GsonBuilder().setPrettyPrinting().create().toJson(content))));
         try {
             HttpRequest request = null;
             switch (method) {
@@ -702,7 +701,7 @@ public class KickflipApiClient extends OAuthClient {
         HashMap responseMap = null;
         Response kickFlipResponse = response.parseAs(responseClass);
         if (VERBOSE)
-            Log.i(TAG, String.format("RESPONSE: %s body: %s", shortenUrlString(response.getRequest().getUrl().toString()), Jackson.toJsonPrettyString(kickFlipResponse)));
+            Log.i(TAG, String.format("RESPONSE: %s body: %s", shortenUrlString(response.getRequest().getUrl().toString()), new GsonBuilder().setPrettyPrinting().create().toJson(kickFlipResponse)));
 //        if (Stream.class.isAssignableFrom(responseClass)) {
 //            if( ((String) responseMap.get("stream_type")).compareTo("HLS") == 0){
 //                kickFlipResponse = response.parseAs(HlsStream.class);

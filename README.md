@@ -1,4 +1,4 @@
-# Kickflip SDK for Android
+# Kickflip SDK for Android  [ ![Download](https://api.bintray.com/packages/onlyinamerica/Kickflip/io.kickflip%3Asdk/images/download.svg) ](https://bintray.com/onlyinamerica/Kickflip/io.kickflip%3Asdk/_latestVersion)
 
 ![kickflip live broadcast screenshot](http://i.imgur.com/ELljE1a.jpg)
 
@@ -6,7 +6,8 @@
 
 The Kickflip Android SDK requires Android 4.3+ (API 18+).
 
-Check out our [Android example application](https://github.com/Kickflip/kickflip-android-example) to see how to easily put this SDK to work.
+Check out our Android example application on [Github](https://github.com/Kickflip/kickflip-android-example) or Google Play (below).
+[![Google Play link](http://steverichey.github.io/google-play-badge-svg/img/en_get.svg)](https://play.google.com/store/apps/details?id=io.kickflip.sample)
 
 Also check out our slick [iOS SDK](https://github.com/Kickflip/kickflip-ios-sdk) and [iOS Example application](https://github.com/Kickflip/kickflip-ios-example)
 
@@ -38,19 +39,44 @@ Also check out our slick [iOS SDK](https://github.com/Kickflip/kickflip-ios-sdk)
     }
     ```
 
-2. Add Kickflip to your app's `build.gradle`:
+2. Add Kickflip to your app as a Maven artifact or, if you plan to modify Kickflip, as a submodule. `build.gradle`:
 
-    **Dependencies:**
+    **Maven Artifact:**
 	```groovy
+	//build.gradle
+	...
 	dependencies {
-   		compile 'io.kickflip:sdk:1.1.1'
+   		compile 'io.kickflip:sdk:1.3.1'
 	}
 	```
+	
+    **Git Submodule:**
+    First add Kickflip as a submodule with git.
+    
+    ```bash
+    $ cd ./path/to/project
+    $ git submodule add https://github.com/Kickflip/kickflip-android-sdk.git ./submodules/kickflip-android-sdk/
+    ```
 
+    Next, add the submodule as a gradle dependency
+    ```groovy
+    //settings.gradle
+    include ':app'
+    include ':submodules:kickflip-android-sdk:sdk'
+    ```
+    
+    ```groovy
+    //your app module's build.gradle
+    ...
+    dependencies {
+        ...
+        compile project(':submodules:kickflip-android-sdk:sdk')
+    }
+    ```
 
 3. Add the following to your app's `AndroidManifest.xml`:
 
-    **Permissions:**
+    **Permissions** (Optional: These will be automatically merged into your AndroidManifest.xml)
 	```xml	       
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
@@ -60,7 +86,7 @@ Also check out our slick [iOS SDK](https://github.com/Kickflip/kickflip-ios-sdk)
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 	```
 	
-	**BroadcastActivity:**	
+	**BroadcastActivity**
 	
 	```xml
     <activity
@@ -69,7 +95,7 @@ Also check out our slick [iOS SDK](https://github.com/Kickflip/kickflip-ios-sdk)
     </activity>
 	```
 
-	**MediaPlayerActivity** (Optional):
+	**MediaPlayerActivity** (Optional)
 	
 	MediaPlayerActivity handles playing HLS streams with some additional features over Android's MediaPlayer (like indicating when a stream is "Live" and more accurately inferring the stream duration).
 	
@@ -90,8 +116,8 @@ Also check out our slick [iOS SDK](https://github.com/Kickflip/kickflip-ios-sdk)
         }
 
         @Override
-        public void onBroadcastLive(String watchUrl) { 
-        	Log.i("Kickflip", "This phone is live at " + watchUrl);       
+        public void onBroadcastLive(Stream stream) {
+            Log.i(TAG, "BroadcastLive @ " + stream.getKickflipUrl());
         }
 
         @Override
@@ -108,7 +134,7 @@ Also check out our slick [iOS SDK](https://github.com/Kickflip/kickflip-ios-sdk)
    	
 `BroadcastActivity` provides a pre-built UI including a camera preview and controls for starting, stopping, and sharing the broadcast.
 
-### Building
+## Building
 
 1. Define the Android SDK root location as $ANDROID_HOME in your environment. It's also a good idea to add the `platform-tools` and `tools` directories to your path so you can easily access common Android utilities, like adb.
 

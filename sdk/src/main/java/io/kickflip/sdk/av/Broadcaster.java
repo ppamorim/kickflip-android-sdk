@@ -4,7 +4,7 @@ import android.content.Context;
 import android.util.Log;
 import android.util.Pair;
 
-import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.google.common.eventbus.DeadEvent;
@@ -89,7 +89,7 @@ public class Broadcaster extends AVRecorder {
      * @param CLIENT_ID     the Client ID available from your Kickflip.io dashboard.
      * @param CLIENT_SECRET the Client Secret available from your Kickflip.io dashboard.
      */
-    public Broadcaster(Context context, SessionConfig config, String CLIENT_ID, String CLIENT_SECRET) {
+    public Broadcaster(Context context, SessionConfig config, String CLIENT_ID, String CLIENT_SECRET) throws IOException {
         super(config);
         checkArgument(CLIENT_ID != null && CLIENT_SECRET != null);
         init();
@@ -208,7 +208,8 @@ public class Broadcaster extends AVRecorder {
         mStream.setExtraInfo(mConfig.getExtraInfo());
         mStream.setIsPrivate(mConfig.isPrivate());
         if (VERBOSE) Log.i(TAG, "Got hls start stream " + stream);
-        mS3Manager = new S3BroadcastManager(this, new BasicAWSCredentials(mStream.getAwsKey(), mStream.getAwsSecret()));
+        mS3Manager = new S3BroadcastManager(this,
+                new BasicSessionCredentials(mStream.getAwsKey(), mStream.getAwsSecret(), mStream.getToken()));
         mS3Manager.setRegion(mStream.getRegion());
         mS3Manager.addRequestInterceptor(mS3RequestInterceptor);
         mReadyToBroadcast = true;
@@ -350,11 +351,13 @@ public class Broadcaster extends AVRecorder {
             if (VERBOSE)
                 Log.i(TAG, "Copying " + e.getManifestFile().getAbsolutePath() + " to " + copy.getAbsolutePath());
             FileUtils.copy(e.getManifestFile(), copy);
+            queueOrSubmitUpload(keyForFilename("index.m3u8"), copy);
+            appendLastManifestEntryToEventManifest(copy, !isRecording());
         } catch (IOException e1) {
+            Log.e(TAG, "Failed to copy manifest file. Upload of this manifest cannot proceed. Stream will have a discontinuity!");
             e1.printStackTrace();
         }
-        queueOrSubmitUpload(keyForFilename("index.m3u8"), copy);
-        appendLastManifestEntryToEventManifest(copy, !isRecording());
+
         mNumSegmentsWritten++;
     }
 

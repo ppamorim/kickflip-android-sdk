@@ -18,8 +18,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 
-import pro.dbro.ffmpegwrapper.FFmpegWrapper;
-import pro.dbro.ffmpegwrapper.FFmpegWrapper.AVOptions;
+import net.openwatch.ffmpegwrapper.FFmpegWrapper;
 
 /**
  * Created by davidbrodsky on 1/23/14.
@@ -37,6 +36,7 @@ public class FFmpegMuxer extends Muxer implements Runnable {
     // MuxerHandler message types
     private static final int MSG_WRITE_FRAME = 1;
     private static final int MSG_ADD_TRACK = 2;
+    private static final int MSG_FORCE_SHUTDOWN = 3;
 
     private final Object mReadyFence = new Object();    // Synchronize muxing thread readiness
     private boolean mReady;                             // Is muxing thread ready
@@ -63,24 +63,21 @@ public class FFmpegMuxer extends Muxer implements Runnable {
     private FFmpegWrapper mFFmpeg;
     private boolean mStarted;
 
-    // Queue encoded buffers when muxing to stream
-    ArrayList<ArrayDeque<ByteBuffer>> mMuxerInputQueue;
+        // Queue encoded buffers when muxing to stream
+        ArrayList<ArrayDeque<ByteBuffer>> mMuxerInputQueue;
 
-    private FFmpegMuxer(String outputFile, FORMAT format) {
-        super(outputFile, format);
-        mReady = false;
-        mFFmpeg = new FFmpegWrapper();
+        private FFmpegMuxer(String outputFile, FORMAT format) {
+            super(outputFile, format);
+            mReady = false;
+            mFFmpeg = new FFmpegWrapper();
 
-        AVOptions opts = new AVOptions();
+        FFmpegWrapper.AVOptions opts = new FFmpegWrapper.AVOptions();
         switch (mFormat) {
             case MPEG4:
                 opts.outputFormatName = "mp4";
                 break;
             case HLS:
                 opts.outputFormatName = "hls";
-                break;
-            case RTMP:
-                opts.outputFormatName = "flv";
                 break;
             default:
                 throw new IllegalArgumentException("Unrecognized format!");
@@ -192,7 +189,7 @@ public class FFmpegMuxer extends Muxer implements Runnable {
         }
     }
 
-    public void handleWriteSampleData(MediaCodec encoder, int trackIndex, int bufferIndex, ByteBuffer encodedData, MediaCodec.BufferInfo bufferInfo) {
+    private void handleWriteSampleData(MediaCodec encoder, int trackIndex, int bufferIndex, ByteBuffer encodedData, MediaCodec.BufferInfo bufferInfo) {
         super.writeSampleData(encoder, trackIndex, bufferIndex, encodedData, bufferInfo);
         mPacketCount++;
 
@@ -237,13 +234,20 @@ public class FFmpegMuxer extends Muxer implements Runnable {
         releaseOutputBufer(encoder, encodedData, bufferIndex, trackIndex);
 
         if (allTracksFinished()) {
-            /*if (VERBOSE) */ Log.i(TAG, "Shutting down");
-            mFFmpeg.finalizeAVFormatContext();
-            shutdown();
+            /*if (VERBOSE) */ Log.i(TAG, "Shutting down on last frame");
+            handleForceStop();
         }
     }
 
     public void forceStop() {
+        if (formatRequiresBuffering())
+            mHandler.sendMessage(mHandler.obtainMessage(MSG_FORCE_SHUTDOWN));
+        else
+            handleForceStop();
+    }
+
+    private void handleForceStop() {
+        Log.i(TAG, "Forcing Shutdown");
         mFFmpeg.finalizeAVFormatContext();
         shutdown();
     }
@@ -416,6 +420,10 @@ public class FFmpegMuxer extends Muxer implements Runnable {
                             data.getBufferInfo());
                     if (TRACE) Trace.endSection();
                     break;
+                case MSG_FORCE_SHUTDOWN:
+                    muxer.handleForceStop();
+                    break;
+
                 default:
                     throw new RuntimeException("Unexpected msg what=" + what);
             }
